@@ -728,6 +728,58 @@ static void init_thread_stacks(void)
 }
 #endif /*CFG_WITH_PAGER*/
 
+#ifdef HV_ACRN
+
+//shared memory slot max number for parameter passing
+#define OPTEE_SHM_SLOT_MAX 1
+
+//SMC handling status on OP-TEE side
+#define OPTEE_SMC_INITIALIZED   0x0
+#define OPTEE_SMC_HANDLING      0x5a5a5a5a
+#define OPTEE_SMC_DONE          0xa5a5a5a5
+
+struct optee_shm_slots {
+    struct thread_smc_args smc_args[OPTEE_SHM_SLOT_MAX];
+};
+
+void return_flags sm_sched_nonsecure(void)
+{
+    uint32_t smc_nr;
+    unsigned long idx = 0;
+    struct thread_smc_args *args_slots = ((struct optee_shm_slots *)parameters_nsec_shm_vaddr)->smc_args;
+
+    memset(args_slots, 0, sizeof(struct thread_smc_args) * OPTEE_SHM_SLOT_MAX);
+
+return_sm_err:
+    if (is_optee_boot_complete == 0) {
+        restore_pic();
+        x86_set_cr8(0);
+        IMSG("return to nonsecure firstly, boot=%d, slots=0x%lx\n",
+                is_optee_boot_complete, (vaddr_t)args_slots);
+        make_smc_hypercall(HC_TEE_BOOT_DONE);
+        is_optee_boot_complete = 1;
+    } else {
+        args_slots[idx].a6 = OPTEE_SMC_DONE;
+        make_smc_hypercall(HC_NOTIFY_REE);
+    }
+
+    //Todo: get slot index from hypercall return value and check it valid or not
+    args_slots[idx].a6 = OPTEE_SMC_HANDLING;
+    smc_nr = args_slots[idx].a0;
+    if (OPTEE_SMC_IS_64(smc_nr)) {/* 64bits */
+        args_slots[idx].a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+        goto return_sm_err;
+    }
+
+    if (OPTEE_SMC_IS_FAST_CALL(smc_nr))
+        thread_handle_fast_smc(&args_slots[idx]);
+    else
+        thread_handle_std_smc(&args_slots[idx]);
+
+
+    goto return_sm_err;
+}
+#else
 void return_flags sm_sched_nonsecure(void)
 {
 	uint32_t smc_nr;
@@ -768,6 +820,7 @@ return_sm_err:
 
 	goto return_sm_err;
 }
+#endif
 
 void thread_init_primary(const struct thread_handlers *handlers)
 {

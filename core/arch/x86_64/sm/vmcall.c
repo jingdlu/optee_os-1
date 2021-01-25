@@ -5,7 +5,20 @@
 
 #include <sm/vmcall.h>
 
+//vmcall id for iKGT
 #define OPTEE_VMCALL_SMC               0x6F707400 /* "opt" is 0x6F7074 */
+
+unsigned long make_smc_hypercall(unsigned long hcall_id)
+{
+    register unsigned long  slot_idx asm("rax");
+    register unsigned long  r8 asm("r8")  = hcall_id;
+
+    __asm__ __volatile__("vmcall;": "=r"(slot_idx): "r"(r8));
+
+    __asm__ __volatile__("hlt");
+
+    return slot_idx;
+}
 
 void make_smc_vmcall(struct thread_smc_args *args)
 {
