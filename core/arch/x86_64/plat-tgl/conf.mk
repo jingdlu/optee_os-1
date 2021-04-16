@@ -9,9 +9,9 @@ $(call force,CFG_WITH_LPAE,y)
 CFG_WITH_STACK_CANARIES ?= n
 CFG_WITH_STATS ?= y
 
-CFG_TEE_CORE_NB_CORE = 1
+CFG_TEE_CORE_NB_CORE = 4
 # TODO: will fix multi threads issue for x86
-CFG_NUM_THREADS ?= 1
+CFG_NUM_THREADS ?= 2
 
 # TODO: will investigate this if this can be enabled for x86
 CFG_TA_DYNLINK ?= n

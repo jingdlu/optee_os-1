@@ -87,7 +87,7 @@ typedef uint64_t arch_flags_t;
 /* Memory area which one Page Table maps with 512 Page Table Entries. */
 #define AREA_MAPPED_W_ONE_PT  (2 * MB)
 
-#define NO_OF_PML4_ENTRIES    1
+#define NO_OF_PML4_ENTRIES    512
 #define NO_OF_PDP_ENTRIES     512
 #define NO_OF_PD_ENTRIES      512
 #define NO_OF_PT_ENTRIES      512
@@ -394,6 +394,7 @@ extern unsigned long parameters_nsec_shm_vaddr;
 extern unsigned long parameters_nsec_shm_size;
 
 void core_init_mmu_map(void);
+void core_init_mmu_map_secondary(void);
 void core_mmu_init(void);
 
 /* ToDo: What should x86 use this structure?
@@ -521,7 +522,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 				  paddr_t pa, uint32_t attr);
 
-void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info);
+void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info, uint8_t id);
 
 /*
  * core_mmu_set_entry() - Set entry in translation table
@@ -695,14 +696,15 @@ void core_init_mmu_tables(struct tee_mmap_region *mm);
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr,
 				unsigned int count, arch_flags_t flags);
 int arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, unsigned int *flags);
+int arch_mmu_unmap(vaddr_t vaddr, unsigned int count);
 int x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr,
 			uint32_t *ret_level, arch_flags_t *mmu_flags,
 			map_addr_t *last_valid_entry);
 
 int x86_mmu_map_range(map_addr_t pt, struct map_range *range,
-					arch_flags_t flags);
+					arch_flags_t flags, uint8_t id);
 int x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr, vaddr_t vaddr,
-						arch_flags_t flags);
+						arch_flags_t flags, uint8_t id);
 int x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, unsigned int count);
 arch_flags_t get_x86_arch_flags(arch_flags_t flags);
 

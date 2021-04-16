@@ -31,21 +31,12 @@ static inline void spinlock_count_decr(void) { }
 static inline void assert_have_no_spinlock(void) { }
 #endif
 
-static inline void __cpu_spin_lock(unsigned int *lock)
-{
-	*lock = 1;
-}
+void __cpu_spin_lock(unsigned int *lock);
 
-static inline void __cpu_spin_unlock(unsigned int *lock)
-{
-	*lock = 0;
-}
+void __cpu_spin_unlock(unsigned int *lock);
 
-/* returns 0 on locking success, non zero on failure */
-static inline unsigned int __cpu_spin_trylock(unsigned int *lock __unused)
-{
-	return 0;
-}
+//returns 0 on locking success, non zero on failure
+unsigned int __cpu_spin_trylock(unsigned int *lock);
 
 static inline void cpu_spin_lock_no_dldetect(unsigned int *lock)
 {

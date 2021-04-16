@@ -29,7 +29,7 @@
 #define THREAD_CORE_LOCAL_ALIGNED __aligned(16)
 
 struct thread_core_local {
-	uint64_t x[4];
+	uint64_t curr_cpu;
 	vaddr_t tmp_stack_va_end;
 	int curr_thread;
 	uint32_t flags;
@@ -119,6 +119,7 @@ struct thread_handlers {
 };
 void thread_init_primary(const struct thread_handlers *handlers);
 void thread_init_per_cpu(void);
+void setup_cpu_id(uint8_t cpu_id);
 
 struct thread_core_local *thread_get_core_local(void);
 

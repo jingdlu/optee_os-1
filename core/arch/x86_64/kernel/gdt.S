@@ -127,13 +127,17 @@ _user_data_64_gde:
 /* TSS descriptor */
 .set tsssel, . - _gdt
 _tss_gde:
+.set i, 1
+.rept CFG_TEE_CORE_NB_CORE
     .short 0                /* limit 15:00 */
     .short 0                /* base 15:00 */
     .byte  0                /* base 23:16 */
-    .byte  0x89             /* P(1) DPL(11) 0 10 B(0) 1 */
-    .byte  0x80             /* G(0) 0 0 AVL(0) limit 19:16 */
-    .byte  0               /* base 31:24 */
+    .byte  0x89             /* P(1) DPL(0) S(0) TYPE(9) */
+    .byte  0x80             /* G(1) D/B(0) L(0) AVL(0) limit 19:16 */
+    .byte  0                /* base 31:24 */
     .quad  0x0000000000000000
+.set i, i + 1
+.endr
 
 DATA(_gdt_end)
 

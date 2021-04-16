@@ -37,6 +37,7 @@ END_FUNC __syscall_panic
 #define SYSCALL_ENTRY_SIZE    0x08
 
 FUNC x86_syscall , :
+    swapgs
     sti
     pushq %rbx /* Ring 3 return address */
     pushq %rbp /* Ring 3 rsp */
@@ -87,6 +88,7 @@ FUNC x86_syscall , :
 
     popq %rcx /* pop rsp */
     popq %rdx /* pop rip */
+    swapgs
     rex.W sysexit
 
 END_FUNC x86_syscall

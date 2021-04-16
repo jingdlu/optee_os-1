@@ -13,4 +13,8 @@ void generic_boot_init_primary(void);
 
 const struct thread_handlers *generic_boot_get_handlers(void);
 
+void generic_boot_init_secondary(void);
+
+void x86_mp_init(int cpu_num);
+
 #endif /* KERNEL_GENERIC_BOOT_H */

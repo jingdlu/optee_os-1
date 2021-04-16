@@ -129,6 +129,25 @@ static bool send_self_ipi(uint32_t vector)
 	return true;
 }
 
+static bool lapic_send_ipi_excluding_self(uint32_t delivery_mode, uint32_t vector)
+{
+    uint32_t icr_low = APIC_DEST_EXCLUDE|APIC_LEVEL_ASSERT|delivery_mode|vector;
+    uint64_t apic_base_msr = read_msr(MSR_APIC_BASE);
+
+    if (!(apic_base_msr & LAPIC_ENABLED)) {
+        return false;
+    }
+
+    if (apic_base_msr & LAPIC_X2_ENABLED) {
+        lapic_x2_write_reg(LAPIC_INTR_CMD_REG, (uint64_t)icr_low);
+    } else {
+        lapic_x1_wait_for_ipi();
+        lapic_x1_write_reg(LAPIC_INTR_CMD_REG, icr_low);
+    }
+
+    return true;
+}
+
 static void lapic_eoi(void)
 {
 	uint64_t apic_base_msr = read_msr(MSR_APIC_BASE);
@@ -155,6 +174,16 @@ void lapic_software_disable(void)
 		lapic_x1_write_reg(LAPIC_SIVR, 0xFF);
 }
 
+bool broadcast_init(void)
+{
+	return lapic_send_ipi_excluding_self(APIC_DM_INIT, 0);
+}
+
+bool broadcast_startup(uint32_t vector)
+{
+	return lapic_send_ipi_excluding_self(APIC_DM_STARTUP, vector);
+}
+
 void apic_init(void)
 {
 	disable_pic();
@@ -164,15 +193,19 @@ void apic_init(void)
 	local_apic_init();
 }
 
+//TODO: will add native interrupt handling
 void apic_it_handle(x86_iframe_t *frame)
 {
-	uint32_t id = frame->vector;
+#ifdef HV_ACRN
+    lapic_eoi();
+#else
+    uint32_t id = frame->vector;
 
-	//TODO: will add native interrupt handling
-	send_self_ipi(id);
+    send_self_ipi(id);
 
-	lapic_eoi();
+    lapic_eoi();
 
-	foreign_intr_handle(id);
+    foreign_intr_handle(id);
+#endif
 }
 

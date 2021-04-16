@@ -13,6 +13,8 @@ srcs-y += descriptor.c
 srcs-y += fault.c
 srcs-y += gdt.S
 srcs-y += exceptions.S
+srcs-y += ap_startup.S
+srcs-y += mp_init.c
 srcs-y += fpu.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c

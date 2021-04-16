@@ -37,7 +37,6 @@
 #include <tee/tee_fs_rpc.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/arch_svc.h>
-#include <drivers/apic.h>
 #include <trace.h>
 #include <util.h>
 #include <console.h>
@@ -115,7 +114,13 @@ static bool thread_prealloc_rpc_cache;
 
 static unsigned int thread_rpc_pnum;
 
+#ifdef HV_ACRN
+uint32_t is_optee_boot_complete[CFG_TEE_CORE_NB_CORE] = {0};
+#else
 uint32_t is_optee_boot_complete = 0;
+#endif
+
+volatile uint64_t optee_cpu_num = 1;
 
 static void syscall_init(vaddr_t sp)
 {
@@ -244,7 +249,7 @@ struct thread_core_local *thread_get_core_local(void)
 	 */
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 
-	assert(cpu_id < CFG_TEE_CORE_NB_CORE);
+	assert(cpu_id < optee_cpu_num);
 	return &thread_core_local[cpu_id];
 }
 
@@ -730,40 +735,33 @@ static void init_thread_stacks(void)
 
 #ifdef HV_ACRN
 
-//shared memory slot max number for parameter passing
-#define OPTEE_SHM_SLOT_MAX 1
-
 //SMC handling status on OP-TEE side
 #define OPTEE_SMC_INITIALIZED   0x0
 #define OPTEE_SMC_HANDLING      0x5a5a5a5a
 #define OPTEE_SMC_DONE          0xa5a5a5a5
 
-struct optee_shm_slots {
-    struct thread_smc_args smc_args[OPTEE_SHM_SLOT_MAX];
-};
-
 void return_flags sm_sched_nonsecure(void)
 {
     uint32_t smc_nr;
-    unsigned long idx = 0;
-    struct thread_smc_args *args_slots = ((struct optee_shm_slots *)parameters_nsec_shm_vaddr)->smc_args;
+    unsigned long idx = get_core_pos();
+    struct thread_smc_args *args_slots = (struct thread_smc_args *)parameters_nsec_shm_vaddr;
 
-    memset(args_slots, 0, sizeof(struct thread_smc_args) * OPTEE_SHM_SLOT_MAX);
+    assert(idx < CFG_TEE_CORE_NB_CORE);
+
+    memset(args_slots, 0, sizeof(struct thread_smc_args) * CFG_TEE_CORE_NB_CORE);
 
 return_sm_err:
-    if (is_optee_boot_complete == 0) {
-        restore_pic();
-        x86_set_cr8(0);
-        IMSG("return to nonsecure firstly, boot=%d, slots=0x%lx\n",
-                is_optee_boot_complete, (vaddr_t)args_slots);
+    if (is_optee_boot_complete[idx] == 0) {
+        IMSG("return to nonsecure firstly, cpu_id=%ld, slots=0x%lx, cpu_num=%ld\n",
+                idx, (vaddr_t)args_slots, optee_cpu_num);
+        args_slots[idx].a0 = optee_cpu_num;
         make_smc_hypercall(HC_TEE_BOOT_DONE);
-        is_optee_boot_complete = 1;
+        is_optee_boot_complete[idx] = 1;
     } else {
         args_slots[idx].a6 = OPTEE_SMC_DONE;
         make_smc_hypercall(HC_NOTIFY_REE);
     }
 
-    //Todo: get slot index from hypercall return value and check it valid or not
     args_slots[idx].a6 = OPTEE_SMC_HANDLING;
     smc_nr = args_slots[idx].a0;
     if (OPTEE_SMC_IS_64(smc_nr)) {/* 64bits */
@@ -836,20 +834,38 @@ void thread_init_primary(const struct thread_handlers *handlers)
 }
 
 /* main tss */
-static tss_t system_tss;
+static tss_t system_tss[CFG_TEE_CORE_NB_CORE];
 
-static void init_tss(struct thread_core_local *l)
+static void init_tss(struct thread_core_local *l, uint8_t cpu_id)
 {
-	memset(&system_tss, 0, sizeof(system_tss));
+    seg_sel_t sel = 0;
 
-	system_tss.rsp0 = l->abt_stack_va_end;
+    assert(cpu_id < CFG_TEE_CORE_NB_CORE);
 
-	system_tss.ist1 = l->abt_stack_va_end;
+    sel = (seg_sel_t)(cpu_id << 4);
+    sel += TSS_SELECTOR;
 
-	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(system_tss),
+    memset(&system_tss[cpu_id], 0, sizeof(tss_t));
+
+	system_tss[cpu_id].rsp0 = l->abt_stack_va_end;
+
+	system_tss[cpu_id].ist1 = l->abt_stack_va_end;
+
+	set_global_desc(sel, &system_tss[cpu_id], sizeof(tss_t),
 			1, 0, 0, SEG_TYPE_TSS, 0, 0);
 
-	x86_ltr(TSS_SELECTOR);
+	x86_ltr(sel);
+}
+
+void setup_cpu_id(uint8_t cpu_id)
+{
+    assert(cpu_id < CFG_TEE_CORE_NB_CORE);
+
+    thread_core_local[cpu_id].curr_cpu = cpu_id;
+
+    write_msr(X86_MSR_GS_BASE, (uint64_t)&thread_core_local[cpu_id]);
+
+    write_msr(X86_MSR_KRNL_GS_BASE, 0);
 }
 
 void thread_init_per_cpu(void)
@@ -860,7 +876,7 @@ void thread_init_per_cpu(void)
 	set_tmp_stack(l, GET_STACK(stack_tmp[pos]) - STACK_TMP_OFFS);
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 
-	init_tss(l);
+	init_tss(l, pos);
 }
 
 struct thread_specific_data *thread_get_tsd(void)

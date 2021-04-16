@@ -26,10 +26,8 @@ DEFINES
 	DEFINE(THREAD_USER_MODE_REC_SIZE, sizeof(struct thread_user_mode_rec));
 
 	/* struct thread_core_local */
-	DEFINE(THREAD_CORE_LOCAL_X0, offsetof(struct thread_core_local, x[0]));
-	DEFINE(THREAD_CORE_LOCAL_X2, offsetof(struct thread_core_local, x[2]));
-
-	/* struct thread_core_local */
+    DEFINE(THREAD_CORE_LOCAL_CURR_CPU,
+		offsetof(struct thread_core_local, curr_cpu));
 	DEFINE(THREAD_CORE_LOCAL_TMP_STACK_VA_END,
 		offsetof(struct thread_core_local, tmp_stack_va_end));
 	DEFINE(THREAD_CORE_LOCAL_CURR_THREAD,

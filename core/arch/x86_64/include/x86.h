@@ -93,6 +93,8 @@ typedef tss_64_t tss_t;
 #define x86_EFER_NXE 0x00000800 /* to enable execute disable bit */
 #define x86_MSR_EFER 0xc0000080 /* EFER Model Specific Register id */
 #define X86_CR4_PSE 0xffffffef /* Disabling PSE bit in the CR4 */
+#define X86_MSR_GS_BASE 0xc0000101 /* Map of base address of GS */
+#define X86_MSR_KRNL_GS_BASE 0xc0000102 /* Swap target of base address of GS */
 
 /* SYSCALL Handling */
 #define SYSENTER_CS_MSR    0x174
@@ -172,14 +174,13 @@ static inline void x86_restore_flags(uint64_t flags)
 		"cc");
 }
 
-#define rdtsc(low, high) \
-	{__asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high)); }
-
-#define rdtscl(low) \
-	{__asm__ __volatile__("rdtsc" : "=a" (low) : : "edx"); }
-
-#define rdtscll(val) \
-	{__asm__ __volatile__("rdtsc" : "=A" (val)); }
+static inline uint64_t rdtsc(void)
+{
+    uint32_t lo, hi;
+    /* We cannot use "=A", since this would use %rax on x86_64 */
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+    return (uint64_t)hi << 32 | lo;
+}
 
 static inline uint8_t inp(uint16_t _port)
 {
@@ -459,6 +460,25 @@ static inline uint64_t check_smap_avail(void)
 		: "=b" (reg_b)
 		: "a" (reg_a), "c" (reg_c));
 	return ((reg_b>>0x14) & 0x1);
+}
+
+static inline uint64_t x86_read_gs_with_offset(uintptr_t offset)
+{
+    uint64_t ret;
+    __asm__ __volatile__ (
+        "movq  %%gs:%1, %0"
+        :"=r" (ret)
+        :"m" (*(uint64_t *)offset));
+    return ret;
+}
+
+static inline void x86_write_gs_with_offset(uint64_t offset, uint64_t val)
+{
+    __asm__ __volatile__ (
+        "movq  %0, %%gs:%1"
+        :
+        :"ir" (val), "m" (*(uint64_t *)offset)
+        :"memory");
 }
 
 static inline void invd(void)

@@ -25,10 +25,13 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <sm/tee_mon.h>
+#include <sm/vmcall.h>
+#include <drivers/apic.h>
 #include <stdio.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <x86.h>
 
 #include <platform_config.h>
 
@@ -37,7 +40,9 @@
 #endif
 
 /* early stack */
-uint8_t _kstack[PAGE_SIZE] __aligned(8);
+uint8_t _kstack[PAGE_SIZE * CFG_TEE_CORE_NB_CORE] __aligned(8);
+
+volatile int optee_cpu_waken_up = 1;
 
 /*
  * In this file we're using unsigned long to represent physical pointers as
@@ -339,23 +344,83 @@ static void init_runtime(void)
 /* What this function is using is needed each time another CPU is started */
 KEEP_PAGER(generic_boot_get_handlers);
 
+static void get_tsc_frequency(void)
+{
+    uint32_t eax = 0x15;
+    uint32_t ebx = 0;
+    uint32_t ecx = 0;
+
+    __asm__ __volatile__
+    ("cpuid" : "=a" (eax), "=b" (ebx), "=c" (ecx) : "a" (eax));
+
+    IMSG("tsc frequency = 0x%x:0x%x:0x%x\n", eax, ebx, ecx);
+}
+
+static void get_base_frequency(void)
+{
+    uint32_t eax = 0x16;
+    uint32_t ebx = 0;
+    uint32_t ecx = 0;
+
+    __asm__ __volatile__
+    ("cpuid" : "=a" (eax), "=b" (ebx), "=c" (ecx) : "a" (eax));
+
+    IMSG("base frequency = 0x%x:0x%x:0x%x\n", eax, ebx, ecx);
+}
+
 void generic_boot_init_primary(void)
 {
-	IMSG("Welcome to OP-TEE\n");
+    unsigned long cpu_num = 0;
 
-	/* init fpu */
-	fpu_init();
+    console_init();
 
-	init_runtime();
+    apic_init();
 
-	thread_init_primary(generic_boot_get_handlers());
+    fpu_init();
 
-	thread_init_per_cpu();
+    IMSG("Welcome to OP-TEE\n");
 
-	IMSG("OP-TEE version: %s", core_v_str);
+    init_runtime();
 
-	if (init_teecore() != TEE_SUCCESS)
-		panic();
+    thread_init_primary(generic_boot_get_handlers());
 
-	DMSG("Primary CPU switching to normal world boot\n");
+    IMSG("OP-TEE version: %s", core_v_str);
+
+    if (init_teecore() != TEE_SUCCESS)
+        panic();
+
+    thread_init_per_cpu();
+
+    get_tsc_frequency();
+
+    get_base_frequency();
+
+    cpu_num = get_tee_core_num();
+
+    if (cpu_num > 1) {
+        IMSG("OP-TEE has %ld cores\n", cpu_num);
+        x86_mp_init(cpu_num);
+    } else {
+        IMSG("OP-TEE has %ld core\n", cpu_num);
+    }
+
+    restore_pic();
+    x86_set_cr8(0);
 }
+
+void generic_boot_init_secondary(void)
+{
+    uint8_t cpu_id = 1;
+
+    apic_init();
+
+    fpu_init();
+
+    thread_init_per_cpu();
+
+    restore_pic();
+    x86_set_cr8(0);
+
+    __asm__ volatile("lock xaddq %%rax, (%%rdx)":"=a"(cpu_id):"a"(cpu_id), "d"(&optee_cpu_waken_up));
+}
+

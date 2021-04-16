@@ -23,6 +23,8 @@
 #define MSR_EFER   0xc0000080
 #define EFER_LME   0x00000100
 
+#define KERNEL_STACK_SIZE 4096
+
 .section .text.boot
 .code32
 .global _start
@@ -67,7 +69,7 @@ real_start:
     movw %ax, %ss
 
     /* set the kernel stack */
-    lea (_kstack + 4096), %esp
+    lea (_kstack + KERNEL_STACK_SIZE), %esp
 
     /* We need to jump to our sane 32 bit CS */
     pushl $CODE_SELECTOR
@@ -101,9 +103,9 @@ clear_nex_bss:
 #endif
 
 paging_setup:
-    /* Preparing 64 bit paging, we will use 2MB pages covering 4GB
-    for initial bootstrap, this page table will be 1 to 1  */
-    // ToDo Could we use 1GB pages
+    //Preparing 64 bit paging, we will use 2MB pages covering 4GB
+    //for initial bootstrap, this page table will be 1 to 1
+    //Todo: Could we use 1GB pages?
 
     /* PAE bit must be enabled  for 64 bit paging*/
     mov %cr4, %eax
@@ -171,6 +173,10 @@ paging_setup:
 farjump64:
     /* set up the idt */
     call setup_idt
+
+    /* set up tee core id */
+    xorq %rdi, %rdi
+    call setup_cpu_id
 
     /* Enable Console */
     call console_init

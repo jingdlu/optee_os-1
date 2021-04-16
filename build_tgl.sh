@@ -13,7 +13,7 @@ export CROSS_COMPILE=x86_64-linux-android-
 export CROSS_COMPILE64=x86_64-linux-android-
 
 # Set below definition to overwrite default log level 1
-export CFG_TEE_CORE_LOG_LEVEL=3
+export CFG_TEE_CORE_LOG_LEVEL=1
 export DEBUG=1
 export CFG_TEE_BENCHMARK=n
 

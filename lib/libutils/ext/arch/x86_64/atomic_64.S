@@ -7,18 +7,18 @@
 
 
 /* uint32_t atomic_inc32(uint32_t *v); */
-//TODO: will consider SMP later
 FUNC atomic_inc32 , :
-    incl (%rdi)
-    movl (%rdi), %eax
-    retq
+    movl $1, %eax
+    lock xaddl %eax, (%rdi)
+    incl %eax
+    ret
 END_FUNC atomic_inc32
 
 /* uint32_t atomic_dec32(uint32_t *v); */
-//TODO: will consider SMP later
 FUNC atomic_dec32 , :
-    decl (%rdi)
-    movl (%rdi), %eax
-    retq
+    movl $-1, %eax
+    lock xaddl %eax, (%rdi)
+    decl %eax
+    ret
 END_FUNC atomic_dec32
 

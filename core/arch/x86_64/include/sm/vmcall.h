@@ -12,10 +12,12 @@
 #define HC_ID_TEE_BASE  0x90UL
 #define HC_ID           0x80UL
 
-#define HC_TEE_BOOT_DONE    _HC_ID(HC_ID,HC_ID_TEE_BASE+0x00)
-#define HC_NOTIFY_REE       _HC_ID(HC_ID,HC_ID_TEE_BASE+0x02)
+#define HC_TEE_BOOT_DONE        _HC_ID(HC_ID,HC_ID_TEE_BASE+0x00)
+#define HC_NOTIFY_REE           _HC_ID(HC_ID,HC_ID_TEE_BASE+0x02)
+#define HC_GET_TEE_CORE_NUM     _HC_ID(HC_ID,HC_ID_TEE_BASE+0x03)
 
-unsigned long make_smc_hypercall(unsigned long hcall_id);
+void make_smc_hypercall(unsigned long hcall_id);
+unsigned long get_tee_core_num(void);
 void make_smc_vmcall(struct thread_smc_args *args);
 
 #endif

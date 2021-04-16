@@ -26,8 +26,6 @@
 #include <tee/entry_std.h>
 #include <trace.h>
 
-extern uint32_t is_optee_boot_complete;
-
 static void main_fiq(void);
 
 static const struct thread_handlers handlers = {
@@ -49,7 +47,6 @@ register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
 #endif
 
 register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE1, PL011_REG_SIZE);
-register_phys_mem(MEM_AREA_IO_SEC, CONSOLE_UART_BASE2, PL011_REG_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, APIC_BASE, APIC_REG_SIZE);
 
 const struct thread_handlers *generic_boot_get_handlers(void)
@@ -63,11 +60,7 @@ static void main_fiq(void)
 
 void console_init(void)
 {
-	if (is_optee_boot_complete == 0) {
-		uart_init(&console_data, CONSOLE_UART_BASE1);
-	} else {
-		uart_init(&console_data, CONSOLE_UART_BASE2);
-	}
+    uart_init(&console_data, CONSOLE_UART_BASE1);
 	register_serial_console(&console_data.chip);
 	IMSG("TRACE INITIALIZED\n");
 }

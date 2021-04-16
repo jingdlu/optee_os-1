@@ -57,29 +57,39 @@ FUNC thread_rpc_resume , :
 
     movq %rdi, %rsp
 
-    popq %rbp
-
     popq %rdi
 
+    movq (%rsi), %rax
+    movl %eax, (%rdi)
+
+    movq 8(%rsi), %rax
+    movl %eax, 4(%rdi)
+
+    movq 16(%rsi), %rax
+    movl %eax, 8(%rdi)
+
+    movq 24(%rsi), %rax
+    movl %eax, 12(%rdi)
+
+    movq 32(%rsi), %rax
+    movl %eax, 16(%rdi)
+
+    movq 40(%rsi), %rax
+    movl %eax, 20(%rdi)
+
+    popq %rax
+    popq %r13
+    popq %r12
+    popq %r11
+    popq %r10
+    popq %rbp
+    popq %rbx
+    popq %r9
+    popq %r8
+    popq %rcx
+    popq %rdx
+    popq %rsi
     popfq
-
-    movq (%rsi), %rbx
-    movl %ebx, (%rdi)
-
-    movq 8(%rsi), %rbx
-    movl %ebx, 4(%rdi)
-
-    movq 16(%rsi), %rbx
-    movl %ebx, 8(%rdi)
-
-    movq 24(%rsi), %rbx
-    movl %ebx, 12(%rdi)
-
-    movq 32(%rsi), %rbx
-    movl %ebx, 16(%rdi)
-
-    movq 40(%rsi), %rbx
-    movl %ebx, 20(%rdi)
 
     retq
 END_FUNC thread_rpc_resume
@@ -153,6 +163,21 @@ END_FUNC thread_get_stdcall_ret
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
+    pushfq
+    pushq %rsi
+    pushq %rdx
+    pushq %rcx
+    pushq %r8
+    pushq %r9
+    pushq %rbx
+    pushq %rbp
+    pushq %r10
+    pushq %r11
+    pushq %r12
+    pushq %r13
+    pushq %rax
+    pushq %rdi
+
     xorq %rax, %rax
 
     movl (%rdi), %eax
@@ -163,12 +188,6 @@ FUNC thread_rpc , :
 
     movl 8(%rdi), %eax
     movq %rax, %r12
-
-    pushfq
-
-    pushq %rdi
-
-    pushq %rbp
 
     movq $THREAD_FLAGS_COPY_ARGS_ON_RETURN, %rdi
 
@@ -270,6 +289,7 @@ FUNC __thread_enter_user_mode , :
     pushq %r15
     pushq $0x5b   //USER_DATA_64_SELECTOR | USER_RPL
     popq %rax
+    swapgs
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %fs

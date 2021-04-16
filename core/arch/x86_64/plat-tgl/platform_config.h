@@ -26,7 +26,6 @@
 #endif
 
 #define CONSOLE_UART_BASE1	0x3f8
-#define CONSOLE_UART_BASE2	0x3f8
 
 /* PIC remap bases */
 #define PIC1_BASE 0x20
