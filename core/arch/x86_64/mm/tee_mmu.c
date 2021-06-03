@@ -271,8 +271,6 @@ TEE_Result vm_set_prot(struct user_ta_ctx *utc, vaddr_t va, size_t len,
 				   (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))) {
 				cache_maintenance(CACHE_AREA_CLEAN,
 					       (void *)va, len);
-				cache_maintenance(CACHE_AREA_INVALIDATE,
-					       (void *)va, len);
 			}
 			r->attr &= ~TEE_MATTR_PROT_MASK;
 			r->attr |= prot & TEE_MATTR_PROT_MASK;
